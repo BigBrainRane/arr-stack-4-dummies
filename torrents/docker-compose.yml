@@ -117,6 +117,7 @@ services:
       - VPN_TYPE=${VPN_TYPE}
     volumes:
       - ${VOLUME_PATH}/gluetun/tmp:/tmp/gluetun
+    restart: unless-stopped
 
   qbittorrent:
     container_name: qbittorrent
