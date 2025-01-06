@@ -1,0 +1,70 @@
+---
+services:
+  traefik:
+    image: traefik:v2.11
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.${domain_name}`)"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.tls=true"
+    command:
+      - --log.level=INFO
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.web.http.redirections.entryPoint.to=websecure
+      - --entrypoints.web.http.redirections.entryPoint.scheme=https
+      - --entrypoints.web.http.redirections.entrypoint.permanent=true
+      - --providers.docker
+      - --providers.docker.exposedbydefault=false
+      - "--certificatesresolvers.myresolver.acme.email=ryancallahan777@gmail.com"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesResolvers.myresolver.acme.httpChallenge=true"
+      - "--certificatesResolvers.myresolver.acme.httpChallenge.entrypoint=web"
+      - --api
+      - --api.insecure=true
+      - --api.dashboard=true
+    ports:
+      - "80:80"
+      - "443:443"
+      - "81:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "${VOLUME_PATH}/traefik/letsencrypt:/letsencrypt"
+  whoami:
+    image: traefik/whoami
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami.rule=Host(`whoami.${domain_name}`)"
+      - "traefik.http.services.whoami.loadbalancer.server.port=2001"
+      - "traefik.http.routers.whoami.entrypoints=websecure"
+      - "traefik.http.routers.whoami.tls=true"
+      - "traefik.http.routers.whoami.tls.certresolver=myresolver"
+      - "traefik.http.routers.whoami.tls.domains[0].main=whoami.${domain_name}"
+    command:
+      - --port=2001
+      - --name=iam
+
+  pihole:
+    image: pihole/pihole:latest
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pihole.rule=Host(`pihole.${domain_name}`)"
+      - "traefik.http.services.pihole.loadbalancer.server.port=80"
+      - "traefik.http.routers.pihole.entrypoints=websecure"
+      - "traefik.http.routers.pihole.tls=true"
+      - "traefik.http.routers.pihole.tls.certresolver=myresolver"
+      - "traefik.http.routers.pihole.tls.domains[0].main=pihole.${domain_name}"
+    ports:
+      - "127.0.0.1:53:53/tcp"
+      - "127.0.0.1:53:53/udp"
+      - "8079:80/tcp"
+    environment:
+      TZ: 'America/Chicago'
+      WEBPASSWORD: "${ADMIN_PASS}"
+      PIHOLE_DNS_: "9.9.9.9;1.1.1.1"
+      DNSMASQ_LISTENING: "all" #if using swarm this env variable will allow DNS to work over overlay and bridge networks.
+    volumes:
+      - '${VOLUME_PATH}/pihole:/etc/pihole'
+      - '${VOLUME_PATH}/dnsmasq.d:/etc/dnsmasq.d'
+    restart: unless-stopped

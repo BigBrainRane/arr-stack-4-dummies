@@ -8,6 +8,7 @@ sudo ufw allow 32400
 ansible-vault decrypt .env
 
 #Starting Containers
-docker compose up -d
+docker compose -p "media-stack" -f media-stack.yml up -d
+docker compose -p "infra-stack" -f infra.yml up -d
 
 echo "Deployment Complete.jamesblows.jpg"
